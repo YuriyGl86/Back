@@ -1,18 +1,32 @@
 const fs = require('fs');
 const http = require('http');
 const Koa = require('koa');
-const koaBody = require('koa-body');
-const koaStatic = require('koa-static');
-const path = require('path');
+const koaBody = require('koa-body').default;
 const uuid = require('uuid');
+const cors = require('@koa/cors');
+
+
 
 const app = new Koa();
 
-let subscriptions = [];
+let tickets = [];
+tickets.push({
+  id: '1',
+  name: 'тестовый тикет с сервера',
+  description: 'это первая тестовая заявка, она создана на сервере',
+  status: false,
+  created: Date.now()
+})
 
-const public = path.join(__dirname, '/public');
+tickets.push({
+  id: '2',
+  name: 'второй тестовый тикет с сервера',
+  description: 'это вторая тестовая заявка, она создана на сервере',
+  status: false,
+  created: Date.now()
+})
 
-app.use(koaStatic(public));
+app.use(cors());
 
 app.use(koaBody({
   urlencoded: true,
@@ -26,47 +40,13 @@ app.use((ctx, next) => {
     return;
   }
 
-  ctx.response.set('Access-Control-Allow-Origin', '*');
+  // ctx.response.set('Access-Control-Allow-Origin', '*');
 
   ctx.response.set('Access-Control-Allow-Methods', 'DELETE, PUT, PATCH, GET, POST');
 
   ctx.response.status = 204;
 });
 
-app.use((ctx, next) => {
-  if (ctx.request.method !== 'POST' && ctx.request.url !== '/upload') {
-    next();
-
-    return;
-  }
-
-  ctx.response.set('Access-Control-Allow-Origin', '*');
-
-  console.log(ctx.request.files);
-
-  let fileName;
-
-  try {
-    const public = path.join(__dirname, '/public');
-
-    const { file } = ctx.request.files;
-
-    const subfolder = uuid.v4();
-
-    const uploadFolder = public + '/' + subfolder;
-
-    fs.mkdirSync(uploadFolder)
-    fs.copyFileSync(file.path, uploadFolder + '/' + file.name);
-
-    fileName = '/' + subfolder + '/' + file.name;
-  } catch (error) {
-    ctx.response.status = 500;
-    
-    return;
-  }
-
-  ctx.response.body = fileName;
-});
 
 app.use((ctx, next) => {
   if (ctx.request.method !== 'POST') {
@@ -77,20 +57,14 @@ app.use((ctx, next) => {
 
   console.log(ctx.request.body);
 
-  const { name, phone } = ctx.request.body;
+  const { name, description, status } = ctx.request.body;
+  const id = uuid.v4()
+  const created  = Date.now()
 
-  ctx.response.set('Access-Control-Allow-Origin', '*');
+  const newTicket = { id, name, description, status, created }
+  tickets.push(newTicket);
 
-  if (subscriptions.some(sub => sub.phone === phone)) {
-    ctx.response.status = 400;
-    ctx.response.body = 'subscription exists';
-
-    return;
-  }
-
-  subscriptions.push({ name, phone });
-
-  ctx.response.body = 'OK';
+  ctx.response.body = newTicket;
 
   next();
 });
@@ -102,29 +76,66 @@ app.use((ctx, next) => {
     return;
   }
   
-  console.log(ctx.request.query);
-
-  const { phone } = ctx.request.query;
+  const { id } = ctx.request.query;
+  console.log(id)
+  console.log(tickets)
 
   ctx.response.set('Access-Control-Allow-Origin', '*');
 
-  if (subscriptions.every(sub => sub.phone !== phone)) {
-    ctx.response.status = 400;
-    ctx.response.body = 'subscription doesn\'t exists';
-
-    return;
-  }
-
-  subscriptions = subscriptions.filter(sub => sub.phone !== phone);
+  tickets = tickets.filter(ticket => ticket.id !== id);
 
   ctx.response.body = 'OK';
+  console.log(tickets)
 
   next();
 });
 
+app.use(async (ctx, next) => {
+  if (ctx.request.method !== 'GET') {
+    next();
+
+    return;
+  }
+  // console.log(ctx.request.query)
+  const { method } = ctx.request.query;
+  // console.log(method)
+  switch (method) {
+      case 'allTickets':
+          ctx.response.body = tickets;
+          next()
+          return;
+      // TODO: обработка остальных методов
+      default:
+          ctx.response.status = 404;
+          return;
+  }
+});
+
+app.use(async (ctx, next) => {
+  if (ctx.request.method !== 'PATCH') {
+    next();
+
+    return;
+  }
+  console.log(ctx.request.query)
+  const { id } = ctx.request.query;
+  const ticket = tickets.find(elem => elem.id == id)
+  console.log(ticket)
+  ticket.status = ticket.status? false: true;
+  ctx.response.body = `status chenged to ${ticket.status}`
+  next()
+});
+
+
+
+
+
+
+
+
 const server = http.createServer(app.callback());
 
-const port = process.env.PORT || 7070;
+const port = 7071;
 
 server.listen(port, (err) => {
   if (err) {
