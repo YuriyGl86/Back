@@ -105,6 +105,13 @@ app.use(async (ctx, next) => {
           next()
           return;
       // TODO: обработка остальных методов
+      case 'ticketById':
+        const { id } = ctx.request.query
+        const ticket = tickets.find(elem => elem.id == id)
+        ctx.response.body = ticket
+        console.log(ticket)
+        next()
+        return
       default:
           ctx.response.status = 404;
           return;

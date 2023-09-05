@@ -6,7 +6,7 @@ dist
 doc
 src1
 temp.js
-package-lock.json
+
 
 # Logs
 logs
