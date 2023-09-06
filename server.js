@@ -1,11 +1,8 @@
-const fs = require('fs');
 const http = require('http');
 const Koa = require('koa');
 const koaBody = require('koa-body').default;
 const uuid = require('uuid');
 const cors = require('@koa/cors');
-
-
 
 const app = new Koa();
 
@@ -15,16 +12,16 @@ tickets.push({
   name: 'тестовый тикет с сервера',
   description: 'это первая тестовая заявка, она создана на сервере',
   status: false,
-  created: Date.now()
-})
+  created: Date.now(),
+});
 
 tickets.push({
   id: '2',
   name: 'второй тестовый тикет с сервера',
   description: 'это вторая тестовая заявка, она создана на сервере',
   status: false,
-  created: Date.now()
-})
+  created: Date.now(),
+});
 
 app.use(cors());
 
@@ -47,7 +44,6 @@ app.use((ctx, next) => {
   ctx.response.status = 204;
 });
 
-
 app.use((ctx, next) => {
   if (ctx.request.method !== 'POST') {
     next();
@@ -58,10 +54,12 @@ app.use((ctx, next) => {
   console.log(ctx.request.body);
 
   const { name, description, status } = ctx.request.body;
-  const id = uuid.v4()
-  const created  = Date.now()
+  const id = uuid.v4();
+  const created = Date.now();
 
-  const newTicket = { id, name, description, status, created }
+  const newTicket = {
+    id, name, description, status, created,
+  };
   tickets.push(newTicket);
 
   ctx.response.body = newTicket;
@@ -75,17 +73,17 @@ app.use((ctx, next) => {
 
     return;
   }
-  
+
   const { id } = ctx.request.query;
-  console.log(id)
-  console.log(tickets)
+  console.log(id);
+  console.log(tickets);
 
   ctx.response.set('Access-Control-Allow-Origin', '*');
 
-  tickets = tickets.filter(ticket => ticket.id !== id);
+  tickets = tickets.filter((ticket) => ticket.id !== id);
 
   ctx.response.body = 'OK';
-  console.log(tickets)
+  console.log(tickets);
 
   next();
 });
@@ -97,24 +95,24 @@ app.use(async (ctx, next) => {
     return;
   }
   // console.log(ctx.request.query)
-  const { method } = ctx.request.query;
+  const { method, id } = ctx.request.query;
+
+  const ticket = tickets.find((elem) => elem.id === id);
   // console.log(method)
   switch (method) {
-      case 'allTickets':
-          ctx.response.body = tickets;
-          next()
-          return;
+    case 'allTickets':
+      ctx.response.body = tickets;
+      next();
+      return;
       // TODO: обработка остальных методов
-      case 'ticketById':
-        const { id } = ctx.request.query
-        const ticket = tickets.find(elem => elem.id == id)
-        ctx.response.body = ticket
-        console.log(ticket)
-        next()
-        return
-      default:
-          ctx.response.status = 404;
-          return;
+    case 'ticketById':
+
+      ctx.response.body = ticket;
+      console.log(ticket);
+      next();
+      return;
+    default:
+      ctx.response.status = 404;
   }
 });
 
@@ -124,21 +122,33 @@ app.use(async (ctx, next) => {
 
     return;
   }
-  console.log(ctx.request.query)
+  console.log(ctx.request.query);
   const { id } = ctx.request.query;
-  const ticket = tickets.find(elem => elem.id == id)
-  console.log(ticket)
-  ticket.status = ticket.status? false: true;
-  ctx.response.body = `status chenged to ${ticket.status}`
-  next()
+  const ticket = tickets.find((elem) => elem.id === id);
+  console.log(ticket);
+  ticket.status = !ticket.status;
+  ctx.response.body = `status chenged to ${ticket.status}`;
+  next();
 });
 
+app.use(async (ctx, next) => {
+  if (ctx.request.method !== 'PUT') {
+    next();
 
+    return;
+  }
 
+  // console.log(ctx.request.query)
+  const { id } = ctx.request.query;
+  const ticket = tickets.find((elem) => elem.id === id);
 
+  const { name, description } = ctx.request.body;
 
-
-
+  ticket.name = name;
+  ticket.description = description;
+  ctx.response.body = `data updated to name: ${ticket.name}, description: ${ticket.description}`;
+  next();
+});
 
 const server = http.createServer(app.callback());
 
@@ -151,5 +161,5 @@ server.listen(port, (err) => {
     return;
   }
 
-  console.log('Server is listening to ' + port);
+  console.log(`Server is listening to ${port}`);
 });
